@@ -20,6 +20,9 @@ class SummaryPage extends StatefulWidget {
 
 class _SummaryPageState extends State<SummaryPage> {
   int _selectedYear = DateTime.now().year;
+  // Cache to prevent flicker when state becomes loading or unrelated year updates arrive
+  Map<int, double> _monthlyTotalsCache = {};
+  bool _isExpenseLoading = false;
 
   @override
   void initState() {
@@ -291,14 +294,32 @@ class _SummaryPageState extends State<SummaryPage> {
 
   Widget _buildMonthlyChart() {
     return BlocBuilder<ExpenseBloc, ExpenseState>(
-      builder: (context, state) {
-        Map<int, double> monthlyTotals = {};
-
-        if (state is MonthlyTotalsLoaded) {
-          monthlyTotals = state.monthlyTotals;
-        } else if (state is YearlyExpenseWithMonthlyTotals) {
-          monthlyTotals = state.monthlyTotals;
+      buildWhen: (prev, curr) {
+        // Always rebuild on initial load and when summary data for selected year arrives.
+        if (curr is YearlyExpenseWithMonthlyTotals && curr.year == _selectedYear) return true;
+        if (curr is ExpenseLoading) return true;
+        if (curr is MonthlyTotalsLoaded) {
+          // Only rebuild if it matches the selected year to avoid clobbering with other years
+          return curr.year == _selectedYear;
         }
+        if (curr is ExpenseError) return true;
+        return false;
+      },
+      builder: (context, state) {
+        // Update cache/loading flags based on state
+        if (state is ExpenseLoading) {
+          _isExpenseLoading = true;
+        } else if (state is YearlyExpenseWithMonthlyTotals && state.year == _selectedYear) {
+          _monthlyTotalsCache = state.monthlyTotals;
+          _isExpenseLoading = false;
+        } else if (state is MonthlyTotalsLoaded && state.year == _selectedYear) {
+          _monthlyTotalsCache = state.monthlyTotals;
+          _isExpenseLoading = false;
+        } else if (state is ExpenseError) {
+          _isExpenseLoading = false;
+        }
+
+        final monthlyTotals = _monthlyTotalsCache;
 
         // Calculate max value for proper scaling
         double maxValue = 0;
@@ -306,12 +327,8 @@ class _SummaryPageState extends State<SummaryPage> {
           final amount = monthlyTotals[i] ?? 0;
           if (amount > maxValue) maxValue = amount;
         }
-
-        // Set minimum max value to avoid zero scale
-        if (maxValue == 0) maxValue = 1000;
-
-        // Add some padding to the max value for better visualization
-        maxValue = maxValue * 1.2;
+        if (maxValue == 0) maxValue = 1000; // minimum scale
+        maxValue = maxValue * 1.2; // padding for visualization
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -351,181 +368,187 @@ class _SummaryPageState extends State<SummaryPage> {
               const SizedBox(height: 20),
               SizedBox(
                 height: 250,
-                child: monthlyTotals.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.show_chart,
-                              size: 48,
-                              color: Colors.grey.shade400,
+                child: () {
+                  if (_isExpenseLoading && monthlyTotals.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (monthlyTotals.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.show_chart,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No expense data available',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No expense data available',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 16,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Add some expenses to see the monthly breakdown',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Add some expenses to see the monthly breakdown',
-                              style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 14,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      )
-                    : LineChart(
-                        LineChartData(
-                          minX: 1,
-                          maxX: 12,
-                          minY: 0,
-                          maxY: maxValue,
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: maxValue / 4,
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey.withValues(alpha: 0.2),
-                                strokeWidth: 1,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return LineChart(
+                    LineChartData(
+                      minX: 1,
+                      maxX: 12,
+                      minY: 0,
+                      maxY: maxValue,
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: maxValue / 4,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey.withValues(alpha: 0.2),
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 50,
+                            interval: maxValue / 4,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) return const Text('0');
+                              return Text(
+                                app_utils.CurrencyUtils.formatCurrency(value).replaceAll('৳', ''),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.textSecondary,
+                                ),
                               );
                             },
                           ),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 50,
-                                interval: maxValue / 4,
-                                getTitlesWidget: (value, meta) {
-                                  if (value == 0) return const Text('0');
-                                  return Text(
-                                    app_utils.CurrencyUtils.formatCurrency(value).replaceAll('৳', ''),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) {
+                              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                              final index = value.toInt() - 1;
+                              if (index >= 0 && index < months.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    months[index],
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: AppTheme.textSecondary,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 30,
-                                getTitlesWidget: (value, meta) {
-                                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                  final index = value.toInt() - 1;
-                                  if (index >= 0 && index < months.length) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        months[index],
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textSecondary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return const Text('');
-                                },
-                              ),
-                            ),
-                          ),
-                          borderData: FlBorderData(
-                            show: true,
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                              left: BorderSide(
-                                color: Colors.grey.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: List.generate(12, (index) {
-                                final month = index + 1;
-                                final amount = monthlyTotals[month] ?? 0;
-                                return FlSpot(month.toDouble(), amount);
-                              }),
-                              isCurved: true,
-                              curveSmoothness: 0.3,
-                              color: AppTheme.primaryColor,
-                              barWidth: 3,
-                              isStrokeCapRound: true,
-                              dotData: FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  final month = index + 1;
-                                  final hasData = monthlyTotals.containsKey(month) && monthlyTotals[month]! > 0;
-
-                                  return FlDotCirclePainter(
-                                    radius: hasData ? 5 : 3,
-                                    color: hasData ? AppTheme.primaryColor : Colors.grey.shade400,
-                                    strokeWidth: 2,
-                                    strokeColor: Colors.white,
-                                  );
-                                },
-                              ),
-                              belowBarData: BarAreaData(
-                                show: true,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryColor.withValues(alpha: 0.15),
-                                    AppTheme.primaryColor.withValues(alpha: 0.05),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                              ),
-                            ),
-                          ],
-                          lineTouchData: LineTouchData(
-                            enabled: true,
-                            touchTooltipData: LineTouchTooltipData(
-                              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                                return touchedBarSpots.map((barSpot) {
-                                  final month = barSpot.x.toInt();
-                                  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                                                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                  final monthName = months[month - 1];
-                                  final amount = barSpot.y;
-
-                                  return LineTooltipItem(
-                                    '$monthName\n${app_utils.CurrencyUtils.formatCurrency(amount)}',
-                                    TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  );
-                                }).toList();
-                              },
-                            ),
-                            handleBuiltInTouches: true,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
                           ),
                         ),
                       ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                          left: BorderSide(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: List.generate(12, (index) {
+                            final month = index + 1;
+                            final amount = monthlyTotals[month] ?? 0;
+                            return FlSpot(month.toDouble(), amount);
+                          }),
+                          isCurved: true,
+                          curveSmoothness: 0.3,
+                          color: AppTheme.primaryColor,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              final month = index + 1;
+                              final hasData = monthlyTotals.containsKey(month) && (monthlyTotals[month] ?? 0) > 0;
+
+                              return FlDotCirclePainter(
+                                radius: hasData ? 5 : 3,
+                                color: hasData ? AppTheme.primaryColor : Colors.grey.shade400,
+                                strokeWidth: 2,
+                                strokeColor: Colors.white,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.primaryColor.withValues(alpha: 0.15),
+                                AppTheme.primaryColor.withValues(alpha: 0.05),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ],
+                      lineTouchData: LineTouchData(
+                        enabled: true,
+                        touchTooltipData: LineTouchTooltipData(
+                          getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                            return touchedBarSpots.map((barSpot) {
+                              final month = barSpot.x.toInt();
+                              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                              final monthName = months[month - 1];
+                              final amount = barSpot.y;
+
+                              return LineTooltipItem(
+                                '$monthName\n${app_utils.CurrencyUtils.formatCurrency(amount)}',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                        handleBuiltInTouches: true,
+                      ),
+                    );
+                }(),
               ),
             ],
           ),
