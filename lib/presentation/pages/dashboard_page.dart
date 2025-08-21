@@ -11,7 +11,6 @@ import '../widgets/category_chart.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/utils.dart' as AppUtils;
 import 'add_expense_page.dart';
-import 'database_viewer_page.dart'; // Add this import for debug viewer
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -20,17 +19,6 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      // Add floating action button for database viewer (debug mode)
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const DatabaseViewerPage()),
-          );
-        },
-        backgroundColor: Colors.grey,
-        child: const Icon(Icons.storage, color: Colors.white),
-      ),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [

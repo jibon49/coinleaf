@@ -46,7 +46,6 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     }
   }
 
-  @override
   Future<Either<Failure, List<Expense>>> getExpensesByDateRange(DateTime start, DateTime end) async {
     try {
       final expenses = await localDataSource.getExpensesByDateRange(start, end);
@@ -58,7 +57,6 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     }
   }
 
-  @override
   Future<Either<Failure, Expense>> getExpenseById(String id) async {
     try {
       final expense = await localDataSource.getExpenseById(id);
@@ -125,6 +123,42 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     try {
       final totals = await localDataSource.getCategoryTotals(month);
       return Right(totals);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Expense>>> getExpensesByYear(int year) async {
+    try {
+      final expenses = await localDataSource.getExpensesByYear(year);
+      return Right(expenses);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, double>> getYearlyExpenseTotal(int year) async {
+    try {
+      final total = await localDataSource.getYearlyExpenseTotal(year);
+      return Right(total);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<int, double>>> getMonthlyExpenseTotals(int year) async {
+    try {
+      final monthleTotals = await localDataSource.getMonthlyExpenseTotals(year);
+      return Right(monthleTotals);
     } on DatabaseFailure catch (failure) {
       return Left(failure);
     } catch (e) {

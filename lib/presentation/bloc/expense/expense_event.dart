@@ -63,3 +63,30 @@ class LoadTotalSpent extends ExpenseEvent {
   @override
   List<Object?> get props => [month];
 }
+
+class LoadYearlyExpenses extends ExpenseEvent {
+  final int year;
+
+  const LoadYearlyExpenses(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}
+
+class LoadMonthlyTotals extends ExpenseEvent {
+  final int year;
+
+  const LoadMonthlyTotals(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}
+
+class LoadSummaryData extends ExpenseEvent {
+  final int year;
+
+  const LoadSummaryData(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}

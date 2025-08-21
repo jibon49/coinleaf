@@ -11,6 +11,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
   final DeleteExpense deleteExpense;
   final GetTotalSpentByMonth getTotalSpentByMonth;
   final GetCategoryTotals getCategoryTotals;
+  final GetExpensesByYear getExpensesByYear;
+  final GetYearlyExpenseTotal getYearlyExpenseTotal;
+  final GetMonthlyExpenseTotals getMonthlyExpenseTotals;
 
   ExpenseBloc({
     required this.addExpense,
@@ -20,6 +23,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     required this.deleteExpense,
     required this.getTotalSpentByMonth,
     required this.getCategoryTotals,
+    required this.getExpensesByYear,
+    required this.getYearlyExpenseTotal,
+    required this.getMonthlyExpenseTotals,
   }) : super(ExpenseInitial()) {
     on<LoadAllExpenses>(_onLoadAllExpenses);
     on<LoadExpensesByMonth>(_onLoadExpensesByMonth);
@@ -28,6 +34,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     on<DeleteExpenseEvent>(_onDeleteExpense);
     on<LoadCategoryTotals>(_onLoadCategoryTotals);
     on<LoadTotalSpent>(_onLoadTotalSpent);
+    on<LoadYearlyExpenses>(_onLoadYearlyExpenses);
+    on<LoadMonthlyTotals>(_onLoadMonthlyTotals);
+    on<LoadSummaryData>(_onLoadSummaryData);
   }
 
   Future<void> _onLoadAllExpenses(LoadAllExpenses event, Emitter<ExpenseState> emit) async {
@@ -69,7 +78,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
       (failure) => emit(ExpenseError(failure.message)),
       (id) {
         emit(const ExpenseOperationSuccess('Expense added successfully'));
-        add(LoadExpensesByMonth(DateTime.now()));
+        // Refresh monthly totals for summary page last to preserve chart state
+        final currentYear = DateTime.now().year;
+        add(LoadMonthlyTotals(currentYear));
       },
     );
   }
@@ -80,7 +91,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
       (failure) => emit(ExpenseError(failure.message)),
       (_) {
         emit(const ExpenseOperationSuccess('Expense updated successfully'));
-        add(LoadExpensesByMonth(DateTime.now()));
+        // Refresh monthly totals for summary page last to preserve chart state
+        final currentYear = DateTime.now().year;
+        add(LoadMonthlyTotals(currentYear));
       },
     );
   }
@@ -91,7 +104,9 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
       (failure) => emit(ExpenseError(failure.message)),
       (_) {
         emit(const ExpenseOperationSuccess('Expense deleted successfully'));
-        add(LoadExpensesByMonth(DateTime.now()));
+        // Refresh monthly totals for summary page last to preserve chart state
+        final currentYear = DateTime.now().year;
+        add(LoadMonthlyTotals(currentYear));
       },
     );
   }
@@ -128,5 +143,62 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
         }
       },
     );
+  }
+
+  Future<void> _onLoadYearlyExpenses(LoadYearlyExpenses event, Emitter<ExpenseState> emit) async {
+    emit(ExpenseLoading());
+
+    final expensesResult = await getExpensesByYear(event.year);
+    final totalResult = await getYearlyExpenseTotal(event.year);
+
+    if (expensesResult.isLeft() || totalResult.isLeft()) {
+      emit(const ExpenseError('Failed to load yearly expense data'));
+      return;
+    }
+
+    final expenses = expensesResult.getOrElse(() => []);
+    final yearlyTotal = totalResult.getOrElse(() => 0.0);
+
+    emit(YearlyExpenseLoaded(
+      expenses: expenses,
+      yearlyTotal: yearlyTotal,
+      year: event.year,
+    ));
+  }
+
+  Future<void> _onLoadMonthlyTotals(LoadMonthlyTotals event, Emitter<ExpenseState> emit) async {
+    final result = await getMonthlyExpenseTotals(event.year);
+
+    result.fold(
+      (failure) => emit(ExpenseError(failure.message)),
+      (monthlyTotals) => emit(MonthlyTotalsLoaded(
+        monthlyTotals: monthlyTotals,
+        year: event.year,
+      )),
+    );
+  }
+
+  Future<void> _onLoadSummaryData(LoadSummaryData event, Emitter<ExpenseState> emit) async {
+    emit(ExpenseLoading());
+
+    final expensesResult = await getExpensesByYear(event.year);
+    final totalResult = await getYearlyExpenseTotal(event.year);
+    final monthlyTotalsResult = await getMonthlyExpenseTotals(event.year);
+
+    if (expensesResult.isLeft() || totalResult.isLeft() || monthlyTotalsResult.isLeft()) {
+      emit(const ExpenseError('Failed to load summary data'));
+      return;
+    }
+
+    final expenses = expensesResult.getOrElse(() => []);
+    final yearlyTotal = totalResult.getOrElse(() => 0.0);
+    final monthlyTotals = monthlyTotalsResult.getOrElse(() => {});
+
+    emit(YearlyExpenseWithMonthlyTotals(
+      expenses: expenses,
+      yearlyTotal: yearlyTotal,
+      monthlyTotals: monthlyTotals,
+      year: event.year,
+    ));
   }
 }

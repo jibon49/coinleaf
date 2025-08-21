@@ -23,7 +23,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
   }
 
   @override
-  Future<Either<Failure, Budget>> getBudgetByMonth(DateTime month) async {
+  Future<Either<Failure, Budget?>> getBudgetByMonth(DateTime month) async {
     try {
       final budget = await localDataSource.getBudgetByMonth(month);
       return Right(budget);
@@ -38,6 +38,18 @@ class BudgetRepositoryImpl implements BudgetRepository {
   Future<Either<Failure, List<Budget>>> getAllBudgets() async {
     try {
       final budgets = await localDataSource.getAllBudgets();
+      return Right(budgets);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Budget>>> getBudgetsByYear(int year) async {
+    try {
+      final budgets = await localDataSource.getBudgetsByYear(year);
       return Right(budgets);
     } on DatabaseFailure catch (failure) {
       return Left(failure);
@@ -89,6 +101,42 @@ class BudgetRepositoryImpl implements BudgetRepository {
     try {
       await localDataSource.updateBudgetSpending(budgetId, amount, category);
       return const Right(null);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, double>> getYearlySavings(int year) async {
+    try {
+      final savings = await localDataSource.getYearlySavings(year);
+      return Right(savings);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<int, double>>> getMonthlySavingsBreakdown(int year) async {
+    try {
+      final breakdown = await localDataSource.getMonthlySavingsBreakdown(year);
+      return Right(breakdown);
+    } on DatabaseFailure catch (failure) {
+      return Left(failure);
+    } catch (e) {
+      return Left(UnknownFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<int, Budget>>> getYearlyBudgetMap(int year) async {
+    try {
+      final budgetMap = await localDataSource.getYearlyBudgetMap(year);
+      return Right(budgetMap);
     } on DatabaseFailure catch (failure) {
       return Left(failure);
     } catch (e) {

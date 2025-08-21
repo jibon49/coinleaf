@@ -42,3 +42,43 @@ class UpdateBudgetSpending {
     return await repository.updateBudgetSpending(budgetId, amount, category);
   }
 }
+
+class GetBudgetsByYear {
+  final BudgetRepository repository;
+
+  GetBudgetsByYear(this.repository);
+
+  Future<Either<Failure, List<Budget>>> call(int year) async {
+    return await repository.getBudgetsByYear(year);
+  }
+}
+
+class GetBudgetByMonth {
+  final BudgetRepository repository;
+
+  GetBudgetByMonth(this.repository);
+
+  Future<Either<Failure, Budget?>> call(DateTime month) async {
+    return await repository.getBudgetByMonth(month);
+  }
+}
+
+class GetYearlySavings {
+  final BudgetRepository repository;
+
+  GetYearlySavings(this.repository);
+
+  Future<Either<Failure, double>> call(int year) async {
+    return await repository.getYearlySavings(year);
+  }
+}
+
+class GetMonthlySavingsBreakdown {
+  final BudgetRepository repository;
+
+  GetMonthlySavingsBreakdown(this.repository);
+
+  Future<Either<Failure, Map<int, double>>> call(int year) async {
+    return await repository.getMonthlySavingsBreakdown(year);
+  }
+}

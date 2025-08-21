@@ -5,12 +5,16 @@ import 'dart:convert';
 
 abstract class BudgetLocalDataSource {
   Future<BudgetModel> getCurrentBudget();
-  Future<BudgetModel> getBudgetByMonth(DateTime month);
+  Future<BudgetModel?> getBudgetByMonth(DateTime month);
   Future<List<BudgetModel>> getAllBudgets();
+  Future<List<BudgetModel>> getBudgetsByYear(int year);
   Future<String> createBudget(BudgetModel budget);
   Future<void> updateBudget(BudgetModel budget);
   Future<void> deleteBudget(String id);
   Future<void> updateBudgetSpending(String budgetId, double amount, String category);
+  Future<double> getYearlySavings(int year);
+  Future<Map<int, double>> getMonthlySavingsBreakdown(int year);
+  Future<Map<int, BudgetModel>> getYearlyBudgetMap(int year);
 }
 
 class BudgetLocalDataSourceImpl implements BudgetLocalDataSource {
@@ -67,7 +71,7 @@ class BudgetLocalDataSourceImpl implements BudgetLocalDataSource {
   }
 
   @override
-  Future<BudgetModel> getBudgetByMonth(DateTime month) async {
+  Future<BudgetModel?> getBudgetByMonth(DateTime month) async {
     try {
       final db = await databaseHelper.database;
       final targetMonth = DateTime(month.year, month.month, 1);
@@ -79,7 +83,7 @@ class BudgetLocalDataSourceImpl implements BudgetLocalDataSource {
       );
 
       if (maps.isEmpty) {
-        throw DatabaseFailure('Budget not found for the specified month');
+        return null; // No budget found for the specified month
       }
 
       // Get the budget data and recalculate spent amounts dynamically
@@ -108,6 +112,22 @@ class BudgetLocalDataSourceImpl implements BudgetLocalDataSource {
       return maps.map((map) => BudgetModel.fromJson(map)).toList();
     } catch (e) {
       throw DatabaseFailure('Failed to get all budgets: $e');
+    }
+  }
+
+  @override
+  Future<List<BudgetModel>> getBudgetsByYear(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'budgets',
+        where: 'strftime("%Y", month) = ?',
+        whereArgs: [year.toString()],
+        orderBy: 'month DESC',
+      );
+      return maps.map((map) => BudgetModel.fromJson(map)).toList();
+    } catch (e) {
+      throw DatabaseFailure('Failed to get budgets by year: $e');
     }
   }
 
@@ -197,6 +217,78 @@ class BudgetLocalDataSourceImpl implements BudgetLocalDataSource {
       await updateBudget(updatedBudget);
     } catch (e) {
       throw DatabaseFailure('Failed to update budget spending: $e');
+    }
+  }
+
+  @override
+  Future<double> getYearlySavings(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'budgets',
+        where: 'strftime("%Y", month) = ?',
+        whereArgs: [year.toString()],
+      );
+
+      double totalSavings = 0.0;
+      for (var map in maps) {
+        final budget = BudgetModel.fromJson(map);
+        // Calculate savings as budget limit minus current spending
+        final savings = budget.monthlyLimit - budget.currentSpent;
+        totalSavings += savings;
+      }
+
+      return totalSavings;
+    } catch (e) {
+      throw DatabaseFailure('Failed to get yearly savings: $e');
+    }
+  }
+
+  @override
+  Future<Map<int, double>> getMonthlySavingsBreakdown(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'budgets',
+        where: 'strftime("%Y", month) = ?',
+        whereArgs: [year.toString()],
+        orderBy: 'month ASC',
+      );
+
+      final Map<int, double> monthlySavings = {};
+      for (var map in maps) {
+        final budget = BudgetModel.fromJson(map);
+        final month = DateTime.parse(budget.month.toString()).month;
+        monthlySavings[month] = budget.monthlyLimit - budget.currentSpent;
+      }
+
+      return monthlySavings;
+    } catch (e) {
+      throw DatabaseFailure('Failed to get monthly savings breakdown: $e');
+    }
+  }
+
+  @override
+  Future<Map<int, BudgetModel>> getYearlyBudgetMap(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'budgets',
+        where: 'strftime("%Y", month) = ?',
+        whereArgs: [year.toString()],
+        orderBy: 'month ASC',
+      );
+
+      final Map<int, BudgetModel> yearlyBudgetMap = {};
+      for (var map in maps) {
+        final budget = BudgetModel.fromJson(map);
+        final month = DateTime.parse(budget.month.toString()).month;
+        yearlyBudgetMap[month] = budget;
+      }
+
+      return yearlyBudgetMap;
+    } catch (e) {
+      throw DatabaseFailure('Failed to get yearly budget map: $e');
     }
   }
 

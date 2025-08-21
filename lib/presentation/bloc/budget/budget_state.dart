@@ -38,3 +38,63 @@ class BudgetError extends BudgetState {
   @override
   List<Object?> get props => [message];
 }
+
+class YearlySavingsLoaded extends BudgetState {
+  final double yearlySavings;
+  final int year;
+
+  const YearlySavingsLoaded({
+    required this.yearlySavings,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [yearlySavings, year];
+}
+
+class MonthlySavingsBreakdownLoaded extends BudgetState {
+  final Map<int, double> monthlySavings;
+  final int year;
+
+  const MonthlySavingsBreakdownLoaded({
+    required this.monthlySavings,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [monthlySavings, year];
+}
+
+class YearlyBudgetsLoaded extends BudgetState {
+  final List<Budget> yearlyBudgets;
+  final Map<int, Budget> budgetMap;
+  final int year;
+
+  const YearlyBudgetsLoaded({
+    required this.yearlyBudgets,
+    required this.budgetMap,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [yearlyBudgets, budgetMap, year];
+}
+
+class BudgetSummaryLoaded extends BudgetState {
+  final double yearlySavings;
+  final Map<int, double> monthlySavings;
+  final List<Budget> yearlyBudgets;
+  final Map<int, Budget> budgetMap;
+  final int year;
+
+  const BudgetSummaryLoaded({
+    required this.yearlySavings,
+    required this.monthlySavings,
+    required this.yearlyBudgets,
+    required this.budgetMap,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [yearlySavings, monthlySavings, yearlyBudgets, budgetMap, year];
+}

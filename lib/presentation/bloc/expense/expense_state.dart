@@ -44,3 +44,48 @@ class ExpenseError extends ExpenseState {
   @override
   List<Object?> get props => [message];
 }
+
+class YearlyExpenseLoaded extends ExpenseState {
+  final List<Expense> expenses;
+  final double yearlyTotal;
+  final int year;
+
+  const YearlyExpenseLoaded({
+    required this.expenses,
+    required this.yearlyTotal,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [expenses, yearlyTotal, year];
+}
+
+class MonthlyTotalsLoaded extends ExpenseState {
+  final Map<int, double> monthlyTotals;
+  final int year;
+
+  const MonthlyTotalsLoaded({
+    required this.monthlyTotals,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [monthlyTotals, year];
+}
+
+class YearlyExpenseWithMonthlyTotals extends ExpenseState {
+  final List<Expense> expenses;
+  final double yearlyTotal;
+  final Map<int, double> monthlyTotals;
+  final int year;
+
+  const YearlyExpenseWithMonthlyTotals({
+    required this.expenses,
+    required this.yearlyTotal,
+    required this.monthlyTotals,
+    required this.year,
+  });
+
+  @override
+  List<Object?> get props => [expenses, yearlyTotal, monthlyTotals, year];
+}

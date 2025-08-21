@@ -51,8 +51,9 @@ class MarketPriceBloc extends Bloc<MarketPriceEvent, MarketPriceState> {
     final result = await syncMarketPrices();
     result.fold(
       (failure) => emit(MarketPriceError(failure.message)),
-      (_) {
-        emit(const MarketPriceSyncSuccess('Market prices updated successfully'));
+      (syncResult) {
+        emit(MarketPriceSyncSuccess('Successfully synced ${syncResult.totalFetched} prices'));
+        // Automatically load the new data after sync
         add(LoadAllMarketPrices());
       },
     );

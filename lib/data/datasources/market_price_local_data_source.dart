@@ -118,7 +118,7 @@ class MarketPriceLocalDataSourceImpl implements MarketPriceLocalDataSource {
         );
       }
 
-      await batch.commit();
+      await batch.commit(noResult: true);
     } catch (e) {
       throw DatabaseFailure('Failed to insert market prices: $e');
     }
@@ -128,14 +128,19 @@ class MarketPriceLocalDataSourceImpl implements MarketPriceLocalDataSource {
   Future<DateTime?> getLastSyncTime() async {
     try {
       final db = await databaseHelper.database;
-      final List<Map<String, dynamic>> result = await db.rawQuery(
-        'SELECT MAX(last_updated) as last_sync FROM market_prices',
+      final result = await db.query(
+        'app_settings',
+        where: 'key = ?',
+        whereArgs: ['last_market_sync'],
       );
 
-      final lastSyncString = result.first['last_sync'] as String?;
-      return lastSyncString != null ? DateTime.parse(lastSyncString) : null;
+      if (result.isEmpty) return null;
+
+      final timeString = result.first['value'] as String;
+      return DateTime.parse(timeString);
     } catch (e) {
-      throw DatabaseFailure('Failed to get last sync time: $e');
+      // If settings table doesn't exist, return null
+      return null;
     }
   }
 
@@ -143,9 +148,24 @@ class MarketPriceLocalDataSourceImpl implements MarketPriceLocalDataSource {
   Future<void> setLastSyncTime(DateTime syncTime) async {
     try {
       final db = await databaseHelper.database;
-      await db.rawUpdate(
-        'UPDATE market_prices SET last_updated = ?',
-        [syncTime.toIso8601String()],
+
+      // Create settings table if it doesn't exist
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+
+      await db.insert(
+        'app_settings',
+        {
+          'key': 'last_market_sync',
+          'value': syncTime.toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
       throw DatabaseFailure('Failed to set last sync time: $e');

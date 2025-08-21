@@ -1,8 +1,11 @@
 import 'package:get_it/get_it.dart';
+import 'package:dio/dio.dart';
 import 'data/datasources/database_helper.dart';
 import 'data/datasources/expense_local_data_source.dart';
 import 'data/datasources/budget_local_data_source.dart';
 import 'data/datasources/market_price_local_data_source.dart';
+import 'data/datasources/market_price_remote_data_source.dart';
+import 'data/services/market_price_sync_service.dart';
 import 'data/repositories/expense_repository_impl.dart';
 import 'data/repositories/budget_repository_impl.dart';
 import 'data/repositories/market_price_repository_impl.dart';
@@ -26,6 +29,9 @@ Future<void> setupDependencyInjection() async {
   // Initialize the database to ensure it's ready
   await databaseHelper.database;
 
+  // Network
+  getIt.registerLazySingleton<Dio>(() => Dio());
+
   // Data Sources
   getIt.registerLazySingleton<ExpenseLocalDataSource>(
     () => ExpenseLocalDataSourceImpl(databaseHelper: getIt()),
@@ -35,6 +41,19 @@ Future<void> setupDependencyInjection() async {
   );
   getIt.registerLazySingleton<MarketPriceLocalDataSource>(
     () => MarketPriceLocalDataSourceImpl(databaseHelper: getIt()),
+  );
+
+  // Remote Data Sources
+  getIt.registerLazySingleton<MarketPriceRemoteDataSource>(
+    () => MarketPriceRemoteDataSourceImpl(dio: getIt()),
+  );
+
+  // Services
+  getIt.registerLazySingleton<MarketPriceSyncService>(
+    () => MarketPriceSyncService(
+      localDataSource: getIt(),
+      remoteDataSource: getIt(),
+    ),
   );
 
   // Repositories
@@ -53,20 +72,28 @@ Future<void> setupDependencyInjection() async {
   getIt.registerLazySingleton(() => GetAllExpenses(getIt()));
   getIt.registerLazySingleton(() => GetExpensesByMonth(getIt()));
   getIt.registerLazySingleton(() => GetExpensesByCategory(getIt()));
+  getIt.registerLazySingleton(() => GetExpensesByYear(getIt()));
   getIt.registerLazySingleton(() => UpdateExpense(getIt()));
   getIt.registerLazySingleton(() => DeleteExpense(getIt()));
   getIt.registerLazySingleton(() => GetTotalSpentByMonth(getIt()));
+  getIt.registerLazySingleton(() => GetYearlyExpenseTotal(getIt()));
   getIt.registerLazySingleton(() => GetCategoryTotals(getIt()));
+  getIt.registerLazySingleton(() => GetMonthlyExpenseTotals(getIt()));
 
   getIt.registerLazySingleton(() => GetCurrentBudget(getIt()));
   getIt.registerLazySingleton(() => CreateBudget(getIt()));
   getIt.registerLazySingleton(() => UpdateBudget(getIt()));
   getIt.registerLazySingleton(() => UpdateBudgetSpending(getIt()));
+  getIt.registerLazySingleton(() => GetBudgetsByYear(getIt()));
+  getIt.registerLazySingleton(() => GetBudgetByMonth(getIt()));
+  getIt.registerLazySingleton(() => GetYearlySavings(getIt()));
+  getIt.registerLazySingleton(() => GetMonthlySavingsBreakdown(getIt()));
 
   getIt.registerLazySingleton(() => GetAllMarketPrices(getIt()));
   getIt.registerLazySingleton(() => GetMarketPricesByCategory(getIt()));
   getIt.registerLazySingleton(() => GetMarketPriceByItem(getIt()));
   getIt.registerLazySingleton(() => SyncMarketPrices(getIt()));
+  getIt.registerLazySingleton(() => SyncMarketPricesPage(getIt()));
 
   // BLoCs
   getIt.registerFactory(() => ExpenseBloc(
@@ -77,6 +104,9 @@ Future<void> setupDependencyInjection() async {
         deleteExpense: getIt(),
         getTotalSpentByMonth: getIt(),
         getCategoryTotals: getIt(),
+        getExpensesByYear: getIt(),
+        getYearlyExpenseTotal: getIt(),
+        getMonthlyExpenseTotals: getIt(),
       ));
 
   getIt.registerFactory(() => BudgetBloc(
@@ -84,6 +114,9 @@ Future<void> setupDependencyInjection() async {
         createBudget: getIt(),
         updateBudget: getIt(),
         updateBudgetSpending: getIt(),
+        getYearlySavings: getIt(),
+        getMonthlySavingsBreakdown: getIt(),
+        getBudgetsByYear: getIt(),
       ));
 
   getIt.registerFactory(() => MarketPriceBloc(

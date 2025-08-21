@@ -42,3 +42,39 @@ class UpdateBudgetSpendingEvent extends BudgetEvent {
   @override
   List<Object?> get props => [budgetId, amount, category];
 }
+
+class LoadYearlySavings extends BudgetEvent {
+  final int year;
+
+  const LoadYearlySavings(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}
+
+class LoadMonthlySavingsBreakdown extends BudgetEvent {
+  final int year;
+
+  const LoadMonthlySavingsBreakdown(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}
+
+class LoadYearlyBudgets extends BudgetEvent {
+  final int year;
+
+  const LoadYearlyBudgets(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}
+
+class LoadBudgetSummaryData extends BudgetEvent {
+  final int year;
+
+  const LoadBudgetSummaryData(this.year);
+
+  @override
+  List<Object?> get props => [year];
+}

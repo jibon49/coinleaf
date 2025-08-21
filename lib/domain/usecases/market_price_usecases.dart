@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../entities/market_price.dart';
 import '../repositories/market_price_repository.dart';
 import '../../core/error/failures.dart';
+import '../../data/services/market_price_sync_service.dart';
 
 class GetAllMarketPrices {
   final MarketPriceRepository repository;
@@ -34,11 +35,21 @@ class GetMarketPriceByItem {
 }
 
 class SyncMarketPrices {
-  final MarketPriceRepository repository;
+  final MarketPriceSyncService syncService;
 
-  SyncMarketPrices(this.repository);
+  SyncMarketPrices(this.syncService);
 
-  Future<Either<Failure, void>> call() async {
-    return await repository.syncMarketPrices();
+  Future<Either<Failure, SyncResult>> call() async {
+    return await syncService.syncAllPrices();
+  }
+}
+
+class SyncMarketPricesPage {
+  final MarketPriceSyncService syncService;
+
+  SyncMarketPricesPage(this.syncService);
+
+  Future<Either<Failure, SyncResult>> call(int page) async {
+    return await syncService.syncSpecificPage(page);
   }
 }

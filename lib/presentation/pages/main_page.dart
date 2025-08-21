@@ -1,3 +1,5 @@
+import 'summary_page.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/expense/expense_bloc.dart';
@@ -11,13 +13,13 @@ import 'dashboard_page.dart';
 import 'expenses_page.dart';
 import 'market_page.dart';
 import 'budget_page.dart';
-import '../../core/theme/app_theme.dart';
-import '../../data/debug/database_debug_helper.dart'; // Add this import
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
+    const SummaryPage(),
   @override
+
   State<MainPage> createState() => _MainPageState();
 }
 
@@ -31,7 +33,6 @@ class _MainPageState extends State<MainPage> {
     const MarketPage(),
     const BudgetPage(),
   ];
-
   @override
   void initState() {
     super.initState();
@@ -42,27 +43,7 @@ class _MainPageState extends State<MainPage> {
       context.read<ExpenseBloc>().add(LoadExpensesByMonth(DateTime.now()));
       context.read<BudgetBloc>().add(LoadCurrentBudget());
       context.read<MarketPriceBloc>().add(LoadAllMarketPrices());
-
-      // Add debug prints to see database data
-      _printDatabaseData();
     });
-  }
-
-  // Add this method to print database data
-  Future<void> _printDatabaseData() async {
-    print('\n🔍 DEBUGGING DATABASE DATA 🔍');
-
-    // Print all tables and data
-    await DatabaseDebugHelper.printAllData();
-
-    // Print current month expenses
-    await DatabaseDebugHelper.printCurrentMonthExpenses();
-
-    // Print budget information
-    await DatabaseDebugHelper.printBudgetInfo();
-
-    // Print category spending summary
-    await DatabaseDebugHelper.printCategorySpendingSummary();
   }
 
   @override
@@ -141,8 +122,18 @@ class _MainPageState extends State<MainPage> {
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.receipt_long_outlined),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.analytics_outlined),
+                  activeIcon: Icon(Icons.analytics),
+                  label: 'Summary',
+                ),
                   activeIcon: Icon(Icons.receipt_long),
                   label: 'Expenses',
+          ),
+        ),
+      ),
+    );
+  }
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.trending_up_outlined),
@@ -156,9 +147,4 @@ class _MainPageState extends State<MainPage> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
 }

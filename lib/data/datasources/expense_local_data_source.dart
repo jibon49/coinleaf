@@ -7,12 +7,15 @@ abstract class ExpenseLocalDataSource {
   Future<List<ExpenseModel>> getExpensesByMonth(DateTime month);
   Future<List<ExpenseModel>> getExpensesByCategory(String category);
   Future<List<ExpenseModel>> getExpensesByDateRange(DateTime start, DateTime end);
+  Future<List<ExpenseModel>> getExpensesByYear(int year);
   Future<ExpenseModel> getExpenseById(String id);
   Future<String> addExpense(ExpenseModel expense);
   Future<void> updateExpense(ExpenseModel expense);
   Future<void> deleteExpense(String id);
   Future<double> getTotalSpentByMonth(DateTime month);
+  Future<double> getYearlyExpenseTotal(int year);
   Future<Map<String, double>> getCategoryTotals(DateTime month);
+  Future<Map<int, double>> getMonthlyExpenseTotals(int year);
 }
 
 class ExpenseLocalDataSourceImpl implements ExpenseLocalDataSource {
@@ -85,6 +88,28 @@ class ExpenseLocalDataSourceImpl implements ExpenseLocalDataSource {
       return maps.map((map) => ExpenseModel.fromJson(map)).toList();
     } catch (e) {
       throw DatabaseFailure('Failed to get expenses by date range: $e');
+    }
+  }
+
+  @override
+  Future<List<ExpenseModel>> getExpensesByYear(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final startOfYear = DateTime(year, 1, 1);
+      final endOfYear = DateTime(year, 12, 31);
+
+      final List<Map<String, dynamic>> maps = await db.query(
+        'expenses',
+        where: 'date >= ? AND date <= ?',
+        whereArgs: [
+          startOfYear.toIso8601String(),
+          endOfYear.toIso8601String(),
+        ],
+        orderBy: 'date DESC',
+      );
+      return maps.map((map) => ExpenseModel.fromJson(map)).toList();
+    } catch (e) {
+      throw DatabaseFailure('Failed to get expenses by year: $e');
     }
   }
 
@@ -168,6 +193,24 @@ class ExpenseLocalDataSourceImpl implements ExpenseLocalDataSource {
   }
 
   @override
+  Future<double> getYearlyExpenseTotal(int year) async {
+    try {
+      final db = await databaseHelper.database;
+      final startOfYear = DateTime(year, 1, 1);
+      final endOfYear = DateTime(year, 12, 31);
+
+      final List<Map<String, dynamic>> result = await db.rawQuery(
+        'SELECT SUM(amount + vat_amount) as total FROM expenses WHERE date >= ? AND date <= ?',
+        [startOfYear.toIso8601String(), endOfYear.toIso8601String()],
+      );
+
+      return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+    } catch (e) {
+      throw DatabaseFailure('Failed to get yearly expense total: $e');
+    }
+  }
+
+  @override
   Future<Map<String, double>> getCategoryTotals(DateTime month) async {
     try {
       final db = await databaseHelper.database;
@@ -187,6 +230,36 @@ class ExpenseLocalDataSourceImpl implements ExpenseLocalDataSource {
       return categoryTotals;
     } catch (e) {
       throw DatabaseFailure('Failed to get category totals: $e');
+    }
+  }
+
+  @override
+  Future<Map<int, double>> getMonthlyExpenseTotals(int year) async {
+    try {
+      final db = await databaseHelper.database;
+
+      // Use proper date format for SQLite comparison
+      final List<Map<String, dynamic>> result = await db.rawQuery(
+        '''SELECT 
+           CAST(strftime('%m', date) AS INTEGER) as month, 
+           SUM(amount + COALESCE(vat_amount, 0)) as total 
+           FROM expenses 
+           WHERE strftime('%Y', date) = ? 
+           GROUP BY strftime('%m', date) 
+           ORDER BY month''',
+        [year.toString()],
+      );
+
+      final Map<int, double> monthlyTotals = {};
+      for (final row in result) {
+        final month = row['month'] as int;
+        final total = (row['total'] as num?)?.toDouble() ?? 0.0;
+        monthlyTotals[month] = total;
+      }
+
+      return monthlyTotals;
+    } catch (e) {
+      throw DatabaseFailure('Failed to get monthly expense totals: $e');
     }
   }
 }

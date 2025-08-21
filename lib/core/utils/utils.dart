@@ -38,70 +38,28 @@ class DateUtils {
   static DateTime endOfMonth(DateTime date) {
     return DateTime(date.year, date.month + 1, 0);
   }
-
-  static List<DateTime> getDaysInMonth(DateTime date) {
-    final start = startOfMonth(date);
-    final end = endOfMonth(date);
-    final days = <DateTime>[];
-    
-    for (int i = 0; i <= end.day - start.day; i++) {
-      days.add(start.add(Duration(days: i)));
-    }
-    
-    return days;
-  }
 }
 
 class CurrencyUtils {
-  static String formatCurrency(double amount, {String currency = 'USD'}) {
+  static String formatCurrency(double amount) {
     final formatter = NumberFormat.currency(
-      symbol: _getCurrencySymbol(currency),
+      locale: 'en_US',
+      symbol: '৳',
       decimalDigits: 2,
     );
     return formatter.format(amount);
   }
 
-  static String _getCurrencySymbol(String currency) {
-    switch (currency.toLowerCase()) {
-      case 'usd':
-        return '\$';
-      case 'eur':
-        return '€';
-      case 'gbp':
-        return '£';
-      case 'inr':
-        return '₹';
-      case 'jpy':
-        return '¥';
-      default:
-        return '\$';
-    }
-  }
-
-  static double parseAmount(String amount) {
-    // Remove currency symbols and spaces
-    final cleanAmount = amount.replaceAll(RegExp(r'[^\d.]'), '');
-    return double.tryParse(cleanAmount) ?? 0.0;
+  static String formatCurrencyCompact(double amount) {
+    final formatter = NumberFormat.compactCurrency(
+      locale: 'en_US',
+      symbol: '৳',
+    );
+    return formatter.format(amount);
   }
 }
 
 class ValidationUtils {
-  static bool isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
-
-  static bool isValidAmount(String amount) {
-    if (amount.isEmpty) return false;
-    final parsed = double.tryParse(amount);
-    return parsed != null && parsed > 0;
-  }
-
-  static bool isValidBudget(String budget) {
-    if (budget.isEmpty) return false;
-    final parsed = double.tryParse(budget);
-    return parsed != null && parsed >= 0;
-  }
-
   static String? validateRequired(String? value, String fieldName) {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName is required';
@@ -113,28 +71,71 @@ class ValidationUtils {
     if (value == null || value.trim().isEmpty) {
       return 'Amount is required';
     }
-    if (!isValidAmount(value)) {
+    
+    final amount = double.tryParse(value);
+    if (amount == null) {
       return 'Please enter a valid amount';
     }
+    
+    if (amount <= 0) {
+      return 'Amount must be greater than 0';
+    }
+    
+    return null;
+  }
+
+  static String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email is required';
+    }
+    
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email';
+    }
+    
     return null;
   }
 }
 
 class MathUtils {
+  static double calculateVAT(double amount, double vatRate) {
+    return amount * (vatRate / 100);
+  }
+
+  static double calculateTotal(double amount, double vatRate) {
+    return amount + calculateVAT(amount, vatRate);
+  }
+
   static double calculatePercentage(double value, double total) {
     if (total == 0) return 0;
     return (value / total) * 100;
   }
 
-  static double calculateVAT(double amount, double vatRate) {
-    return amount * (vatRate / 100);
+  static double roundToDecimalPlaces(double value, int decimalPlaces) {
+    double multiplier = 1;
+    for (int i = 0; i < decimalPlaces; i++) {
+      multiplier *= 10;
+    }
+    return (value * multiplier).round() / multiplier;
   }
+}
 
-  static double getAmountWithoutVAT(double totalAmount, double vatRate) {
-    return totalAmount / (1 + (vatRate / 100));
-  }
+class ColorUtils {
+  static const List<int> categoryColors = [
+    0xFF4CAF50, // Green
+    0xFF2196F3, // Blue
+    0xFFFF9800, // Orange
+    0xFF9C27B0, // Purple
+    0xFFF44336, // Red
+    0xFF00BCD4, // Cyan
+    0xFFFFEB3B, // Yellow
+    0xFF795548, // Brown
+    0xFF607D8B, // Blue Grey
+    0xFFE91E63, // Pink
+  ];
 
-  static double roundToTwoDecimals(double value) {
-    return double.parse(value.toStringAsFixed(2));
+  static int getCategoryColor(int index) {
+    return categoryColors[index % categoryColors.length];
   }
 }

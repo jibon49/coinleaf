@@ -82,3 +82,33 @@ class GetCategoryTotals {
     return await repository.getCategoryTotals(month);
   }
 }
+
+class GetExpensesByYear {
+  final ExpenseRepository repository;
+
+  GetExpensesByYear(this.repository);
+
+  Future<Either<Failure, List<Expense>>> call(int year) async {
+    return await repository.getExpensesByYear(year);
+  }
+}
+
+class GetYearlyExpenseTotal {
+  final ExpenseRepository repository;
+
+  GetYearlyExpenseTotal(this.repository);
+
+  Future<Either<Failure, double>> call(int year) async {
+    return await repository.getYearlyExpenseTotal(year);
+  }
+}
+
+class GetMonthlyExpenseTotals {
+  final ExpenseRepository repository;
+
+  GetMonthlyExpenseTotals(this.repository);
+
+  Future<Either<Failure, Map<int, double>>> call(int year) async {
+    return await repository.getMonthlyExpenseTotals(year);
+  }
+}
